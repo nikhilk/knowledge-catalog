@@ -7,11 +7,12 @@
     "kcmd": "./dist/kcenrich"
   },
   "scripts": {
-    "build:bin": "npx bun build --compile --outfile dist/kcenrich src/main.ts",
     "build:lib": "npx tsc -p tsconfig.json",
-    "build": "npm run build:lib && npm run build:bin",
+    "build:agent": "npx bun build --compile --outfile dist/kcenrich src/agent/main.ts",
+    "build:kbtool": "npx bun build --compile --outfile dist/kbtool src/tools/kbtool/main.ts",
+    "build": "npm run build:lib && npm run build:agent && npm run build:kbtool",
     "compile": "npx tsc --noEmit",
-    "debug": "npx adk web src/agent.ts"
+    "debug": "npx adk web src/agent/agent.ts"
   },
   "keywords": [],
   "author": "",
@@ -19,8 +20,10 @@
   "type": "commonjs",
   "dependencies": {
     "@google/adk": "^1.1.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "cac": "^7.0.0",
-    "kcmd": "file:../mdcode"
+    "kcmd": "file:../mdcode",
+    "zod": "^4.4.2"
   },
   "devDependencies": {
     "@google/adk-devtools": "^1.1.0",

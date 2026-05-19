@@ -6,6 +6,7 @@ import './util/patchpb.js';
 
 import * as adk from '@google/adk';
 import * as cac from 'cac';
+import * as fs from 'node:fs';
 import { enrichCommand, EnrichOptions } from './enrich.js';
 
 // Suppress the overly noisy logging from the ADK
@@ -16,6 +17,9 @@ cli.command('catalog', 'Enrich the metadata in the catalog')
    .option('--path <path>', 'Path to the catalog')
    .option('--config-path <path>', 'Path to the config directory')
    .action(async (options: EnrichOptions) => {
+      process.env.AGENT_CATALOG_PATH = options.path ?? '';
+      process.env.AGENT_CONFIG_PATH = options.configPath ?? '';
+
       console.log('Enriching catalog...');
       try {
         await enrichCommand(options);
