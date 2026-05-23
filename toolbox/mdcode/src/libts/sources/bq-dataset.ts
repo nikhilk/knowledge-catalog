@@ -10,45 +10,56 @@ export class BigQueryDatasetSource {
   readonly name: string;
   readonly ingestedEntries = true;
 
-  private readonly _name: string[];
+  private readonly _datasets: string[][];
 
   constructor(type: string, name: string) {
     this.type = type;
     this.name = name;
-    this._name = name.split('.');
+    
+    const names = name.split(',');
+    this._datasets = names.map(n => {
+      const parts = n.split('.');
+      if (parts.length !== 2) {
+        throw new Error(`BigQuery dataset must be in format <projectId>.<datasetId>: ${n}`);
+      }
+      return parts;
+    });
   }
 
   async *entries(ctx: gcp.ApiContext): AsyncGenerator<gcp.Entry, void, unknown> {
-    // List the BigQuery dataset, and its children, and retrieve entries for each resource.
     const bigQuery = new bq.BigQueryClient(ctx);
     const catalog = new gcp.CatalogClient(ctx);
 
-    // Find the location of the dataset, as this is required to construct the catalog entry name.
-    const dsResource = await bigQuery.getDataset(this._name[0], this._name[1]);
-    if (!dsResource.result) {
-      throw new Error(`Failed to get location for dataset ${this.name}`);
-    }
+    for (const datasetParts of this._datasets) {
+      const [project, dataset] = datasetParts;
 
-    // Fetch the dataset entry
-    const location = dsResource.result.location.toLowerCase();
-    const dsEntryId = `bigquery.googleapis.com/projects/${this._name[0]}/datasets/${this._name[1]}`
-    const dsEntryName = `${gcp.catalogContainer(this._name[0], location, '@bigquery')}/entries/${dsEntryId}`
-    const dsEntryResult = await catalog.lookupEntry(this._name[0], location, dsEntryName);
-    if (!dsEntryResult.result) {
-      throw new Error(`Failed to get Entry for dataset ${this.name}`);
-    }
-    yield dsEntryResult.result;
-
-    // Fetch the table entries
-    for await (const table of bigQuery.listTables(this._name[0], this._name[1])) {
-      const tableId = table.tableReference.tableId;
-      const tableEntryName = `${dsEntryName}/tables/${tableId}`
-      const tableEntryResult = await catalog.lookupEntry(this._name[0], location, tableEntryName);
-      if (!tableEntryResult.result) {
-        throw new Error(`Failed to get Entry for table ${this.name}.${tableId}`);
+      // Find the location of the dataset, as this is required to construct the catalog entry name.
+      const dsResource = await bigQuery.getDataset(project, dataset);
+      if (!dsResource.result) {
+        throw new Error(`Failed to get location for dataset ${project}.${dataset}`);
       }
 
-      yield tableEntryResult.result;
+      // Fetch the dataset entry
+      const location = dsResource.result.location.toLowerCase();
+      const dsEntryId = `bigquery.googleapis.com/projects/${project}/datasets/${dataset}`
+      const dsEntryName = `${gcp.catalogContainer(project, location, '@bigquery')}/entries/${dsEntryId}`
+      const dsEntryResult = await catalog.lookupEntry(project, location, dsEntryName);
+      if (!dsEntryResult.result) {
+        throw new Error(`Failed to get Entry for dataset ${project}.${dataset}`);
+      }
+      yield dsEntryResult.result;
+
+      // Fetch the table entries
+      for await (const table of bigQuery.listTables(project, dataset)) {
+        const tableId = table.tableReference.tableId;
+        const tableEntryName = `${dsEntryName}/tables/${tableId}`
+        const tableEntryResult = await catalog.lookupEntry(project, location, tableEntryName);
+        if (!tableEntryResult.result) {
+          throw new Error(`Failed to get Entry for table ${project}.${dataset}.${tableId}`);
+        }
+
+        yield tableEntryResult.result;
+      }
     }
 
     // TODO: Add support for routines, models
@@ -56,23 +67,24 @@ export class BigQueryDatasetSource {
 
   localName(entry: gcp.Entry): string {
     // The local catalog uses simplified path scheme:
-    // dataset -> <dataset id>
-    // table -> <dataset id>/tables/<table id
-    // model -> <dataset id>/models/<model id>
-    // routine -> <dataset id>/routines/<routine id>
+    // dataset -> <project id>.<dataset id>
+    // table -> <project id>.<dataset id>/<table id>
+    // model -> <project id>.<dataset id>/models/<model id>
+    // routine -> <project id>.<dataset id>/routines/<routine id>
 
-    let match = entry.name.match(/\/datasets\/([^/]+)\/(tables|models|routines)\/(.+)$/);
+    let match = entry.name.match(/\/projects\/([^/]+)\/datasets\/([^/]+)\/(tables|models|routines)\/(.+)$/);
     if (match) {
-      const [, dataset, type, id] = match;
+      const [, project, dataset, type, id] = match;
       if (type === 'tables') {
-        return `${dataset}/${id}`;
+        return `${project}.${dataset}/${id}`;
       }
-      return `${type}/${dataset}/${id}`;
+      return `${type}/${project}.${dataset}/${id}`;
     }
 
-    match = entry.name.match(/\/datasets\/([^/]+)$/);
+    match = entry.name.match(/\/projects\/([^/]+)\/datasets\/([^/]+)$/);
     if (match) {
-      return match[1];
+      const [, project, dataset] = match;
+      return `${project}.${dataset}`;
     }
 
     throw new Error(`Invalid BigQuery entry: ${entry.name}`);

@@ -37,15 +37,19 @@ async function validateEntryGroup(name: string, ctx: gcp.ApiContext): Promise<vo
 
 
 async function validateBigQueryDataset(name: string, ctx: gcp.ApiContext): Promise<void> {
-  const [project, dataset] = name.split('.')
-  if (!project || !dataset) {
-    throw new Error('BigQuery dataset must be in format <projectId>.<datasetId>');
-  }
+  const names = name.split(',');
 
   const bigQuery = new bq.BigQueryClient(ctx);
-  const res = await bigQuery.getDataset(project, dataset);
-  if (res.status !== 200) {
-    throw new Error(`Failed to locate BigQuery dataset '${name}'.`);
+  for (const n of names) {
+    const [project, dataset] = n.split('.');
+    if (!project || !dataset) {
+      throw new Error(`BigQuery dataset must be in format <projectId>.<datasetId>: ${n}`);
+    }
+
+    const res = await bigQuery.getDataset(project, dataset);
+    if (res.status !== 200) {
+      throw new Error(`Failed to locate BigQuery dataset '${n}'.`);
+    }
   }
 }
 

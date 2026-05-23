@@ -210,6 +210,10 @@ The manifest file captures all configuration related information. This includes:
 scope: <type>.<name>              # The resources in the snapshot. Examples:
                                   # scope: entryGroup.<projectId>.<locationId>.<entryGroupId>
                                   # scope: bq-dataset.<projectId>.<datasetId>
+                                  # Or multiple BigQuery datasets in array list format:
+                                  # scope:
+                                  #   - bq-dataset.<projectId>.<datasetId1>
+                                  #   - bq-dataset.<projectId>.<datasetId2>
 
 layout: standard                  # Optional. The disk layout style. Options: standard, wiki.
                                   # Defaults to standard.
@@ -271,10 +275,8 @@ are followed to derive file names from EntryIds.
 Inferrable segments (Service name and Location from EntryGroup) and Collection
 names (where possible) will be stripped out.
 
-| Entry Id | File Path | NOTES |
-| :---- | :---- | :---- |
-| bigquery.googleapis.com/ projects/projectId/ datasets/datasetId/ tables/tableId | datasetId/tableId.yaml | Aligns with physical hierarchy. Common case for context use-cases. Avoid a type segment in directory path to optimize for most common resource when a collection has multiple types of sub-resources |
-| bigquery.googleapis.com/ projects/projectId/ datasets/datasetId/ routines/routineId | routines/datasetId/routineId.yaml | Moved into sub-directory to avoid potential conflicts between table and routine names |
+| bigquery.googleapis.com/ projects/projectId/ datasets/datasetId/ tables/tableId | projectId.datasetId/tableId.yaml | Aligns with physical hierarchy. Common case for context use-cases. Avoid a type segment in directory path to optimize for most common resource when a collection has multiple types of sub-resources |
+| bigquery.googleapis.com/ projects/projectId/ datasets/datasetId/ routines/routineId | routines/projectId.datasetId/routineId.yaml | Moved into sub-directory to avoid potential conflicts between table and routine names |
 | cloudsql.googleapis.com/ projects/projectId/ locations/locationId/ instances/instanceId/ databases/databaseId | instanceId/databaseId/tableId.yaml | Example included to demonstrate how EntryIds and corresponding file names treat control plane and dataplane ids together |
 
 
@@ -458,7 +460,7 @@ publishing:
   - definition
 ```
 
-**workspace/catalog/ecommerce-dataset.yaml**
+**workspace/catalog/ecommerce-prod.ecommerce-dataset.yaml**
 ```
 id: bigquery.googleapis.com/projects/ecommerce-prod/datasets/ecommerce-dataset
 type: bigquery-dataset
@@ -481,7 +483,7 @@ descriptions:
   description: <generated dataset description>
 ```
 
-**workspace/catalog/ecommerce-dataset/orders.yaml**
+**workspace/catalog/ecommerce-prod.ecommerce-dataset/orders.yaml**
 ```
 id: bigquery.googleapis.com/projects/ecommerce-prod/datasets/ecommerce-dataset/tables/orders
 type: bigquery-table
@@ -539,7 +541,7 @@ links:
     target: ecommerce.transaction
 ```
 
-**workspace/catalog/ecommerce-dataset/orders.overview.md**
+**workspace/catalog/ecommerce-prod.ecommerce-dataset/orders.overview.md**
 ```
 ---
 userManaged: true
@@ -550,7 +552,7 @@ links:
 [overview.content]
 ```
 
-**workspace/catalog/ecommerce-dataset/orders.guidelines.md**
+**workspace/catalog/ecommerce-prod.ecommerce-dataset/orders.guidelines.md**
 ```markdown
 ---
 userManaged: false

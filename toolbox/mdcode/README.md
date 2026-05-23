@@ -58,7 +58,7 @@ publishing:
 ```
 
 ## Entry YAML File
-**catalog/ecommerce/products.yaml**
+**catalog/prod-data.ecommerce/products.yaml**
 ```yaml
 id: products
 type: bigquery-table
@@ -80,7 +80,7 @@ contacts:
 ```
 
 ## Entry Sidecar Markdown File
-**catalog/ecommerce/products.overview.md**
+**catalog/prod-data.ecommerce/products.overview.md**
 
 ```markdown
 ---
@@ -137,6 +137,9 @@ The package provides the `kcmd` CLI tool. This is distributed as a standalone bi
 ```bash
 # Initialize a new catalog snapshot for a bigquery dataset
 kcmd init --bigquery-dataset <projectId>.<datasetId>
+
+# Initialize a new catalog snapshot for multiple bigquery datasets
+kcmd init --bigquery-dataset <projectId>.<datasetId1> --bigquery-dataset <projectId>.<datasetId2>
 
 # Initialize a new catalog snapshot for a bigquery dataset with specific types
 kcmd init --bigquery-dataset <projectId>.<datasetId> \
@@ -196,8 +199,8 @@ NOTE: The server uses `gcloud` to obtain authentication tokens, so ensure you ar
 ### Setup
 
 ```bash
-git clone https://github.com/googlecloudplatform/knowlege-catalog
-cd toolbox/mac
+git clone https://github.com/googlecloudplatform/knowledge-catalog
+cd toolbox/mdcode
 npm install
 ```
 

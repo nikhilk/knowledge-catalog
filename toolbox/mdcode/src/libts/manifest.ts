@@ -9,7 +9,7 @@ import { CatalogSource, createSource, Sources } from './source';
 
 
 const manifestSchema = z.object({
-  scope: z.string(),
+  scope: z.union([z.string(), z.array(z.string())]),
   snapshot: z.object({
     entries: z.array(z.string()).optional(),
     aspects: z.array(z.string()).optional()
@@ -71,16 +71,40 @@ export class CatalogManifest {
     }
     
     const scope = result.data.scope;
-    const dotIndex = scope.indexOf('.');
-    if (dotIndex === -1) {
-      throw new Error(`Manifest error: scope '${scope}' is invalid.`);
+    let source: CatalogSource;
+    if (Array.isArray(scope)) {
+      if (scope.length === 0) {
+        throw new Error('Manifest error: scope array cannot be empty.');
+      }
+
+
+      const datasets: string[] = [];
+      for (const s of scope) {
+        const dotIndex = s.indexOf('.');
+        if (dotIndex === -1) {
+          throw new Error(`Manifest error: scope '${s}' is invalid.`);
+        }
+        const type = s.substring(0, dotIndex);
+        const name = s.substring(dotIndex + 1);
+        if (type !== Sources.BIGQUERY_DATASET) {
+          throw new Error(`Manifest error: only BigQuery datasets are allowed in multiple scopes. Found type '${type}'.`);
+        }
+        datasets.push(name);
+      }
+
+      source = await createSource(Sources.BIGQUERY_DATASET, datasets.join(','), ctx);
     }
-    
-    const source = await createSource(
-      scope.substring(0, dotIndex),
-      scope.substring(dotIndex + 1),
-      ctx
-    );
+    else {
+      const dotIndex = scope.indexOf('.');
+      if (dotIndex === -1) {
+        throw new Error(`Manifest error: scope '${scope}' is invalid.`);
+      }
+      source = await createSource(
+        scope.substring(0, dotIndex),
+        scope.substring(dotIndex + 1),
+        ctx
+      );
+    }
 
     const snapshot = result.data.snapshot;
     if (snapshot) {
@@ -138,8 +162,22 @@ export class CatalogManifest {
   }
 
   save(path: string): void {
+    let scope: string | string[];
+    if (this.source.type === Sources.BIGQUERY_DATASET) {
+      const names = this.source.name.split(',');
+      if (names.length > 1) {
+        scope = names.map(n => `${Sources.BIGQUERY_DATASET}.${n}`);
+      }
+      else {
+        scope = `${this.source.type}.${this.source.name}`;
+      }
+    }
+    else {
+      scope = `${this.source.type}.${this.source.name}`;
+    }
+
     const data: any = {
-      scope: `${this.source.type}.${this.source.name}`,
+      scope: scope,
     };
     if (this.snapshotConfig) {
       data.snapshot = this.snapshotConfig;
